@@ -39,14 +39,16 @@
 .main form {
   display: flex;
   flex-direction: column;
-  width: 320px;
+  width: 480px;
+  align-items: center;
 }
-.main input[type="text"] {
+.main textarea {
   padding: 12px 16px;
   border: 1px solid #10a37f;
   border-radius: 4px;
-  margin-bottom: 24px;
   outline-color: #10a37f;
+  width: 100%;
+  margin-bottom: 12px;
 }
 .main ::placeholder {
   color: #8e8ea0;
@@ -60,8 +62,28 @@
   border-radius: 4px;
   text-align: center;
   cursor: pointer;
+  width: 320px;
+}
+.main label {
+  display: block;
+  padding: 8px 0;
+  color: #fff;
+  background-color: royalblue;
+  border: none;
+  border-radius: 4px;
+  text-align: center;
+  cursor: pointer;
+  width: 200px;
+  margin-bottom: 24px;
 }
 .main .result {
+  font-weight: bold;
+  background: #ddd;
+  padding: 0 40px 40px;
+  white-space: pre-wrap;
+}
+
+.main .query {
   font-weight: bold;
   margin-top: 40px;
 }

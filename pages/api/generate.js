@@ -5,6 +5,20 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
+export const dataType64toFile = (b64Data, filename) => {
+  const mime = "image/png";
+  const bstr = atob(b64Data);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  const newFile = new File([u8arr], filename, {
+    type: mime,
+  });
+  return newFile;
+};
+
 export default async function (req, res) {
   if (!configuration.apiKey) {
     res.status(500).json({
@@ -15,23 +29,90 @@ export default async function (req, res) {
     return;
   }
 
-  const animal = req.body.animal || '';
-  if (animal.trim().length === 0) {
+  const query = req.body.query || '';
+  
+  if (!req.body.image && query.trim().length === 0) {
     res.status(400).json({
       error: {
-        message: "Please enter a valid animal",
+        message: "Please enter a valid query string",
       }
     });
     return;
   }
 
   try {
-    const completion = await openai.createCompletion({
+    const completion = req.body.image ? {
+      data: {
+        choices: [
+          {
+            text: 'Image'
+          }
+        ]
+      }
+    } : await openai.createCompletion({
       model: "text-davinci-003",
-      prompt: generatePrompt(animal),
-      temperature: 0.6,
+      prompt: 
+        `
+        Deduce if the following string is requesting an image, code or text-based answer? Answer should be [Image, Code, Text].
+        
+        ${query}
+        `,
+      temperature: 0.25,
+      max_tokens: 5,
     });
-    res.status(200).json({ result: completion.data.choices[0].text });
+
+    if (completion.data.choices[0].text?.includes('Text')) {
+      const temperature = 0.75;
+      const max_tokens = 2000;
+
+      const completion = await openai.createCompletion({
+        model: "text-davinci-003",
+        prompt: query,
+        temperature,
+        max_tokens,
+      });
+      res.status(200).json({ query, result: completion.data.choices[0].text, type: 'Text' });
+    } else if (completion.data.choices[0].text?.includes('Image')) {
+      if (req.body.image) {
+        const buffer = Buffer.from(req.body.image.replace(/^data:image\/(png);base64,/, ""), 'base64');
+        buffer.name = 'file.png';
+          
+        if (query.trim().length === 0) {
+          const response = await openai.createImageVariation(buffer);
+          const image_url = response.data.data[0].url;
+          res.status(200).json({ query, result: image_url, type: 'Image' });
+        } else {          
+          const mask = Buffer.from(req.body.mask.replace(/^data:image\/(png);base64,/, ""), 'base64');
+          buffer.name = 'mask.png';
+
+          const response = await openai.createImageEdit(
+            buffer,
+            mask,
+            query,
+          );
+          const image_url = response.data.data[0].url;
+          res.status(200).json({ query, result: image_url, type: 'Image' });
+        }
+      } else {        
+          const response = await openai.createImage({
+            prompt: query,
+          });
+          const image_url = response.data.data[0].url;
+          res.status(200).json({ query, result: image_url, type: 'Image' });        
+      }
+    } else if (completion.data.choices[0].text?.includes('Code')) {
+      const temperature = 0.2;
+      const max_tokens = 2000;
+
+      const completion = await openai.createCompletion({
+        model: "code-davinci-002",
+        prompt: query,
+        temperature,
+        max_tokens,
+      });
+      res.status(200).json({ query, result: completion.data.choices[0].text, type: 'Code' });
+    }
+    
   } catch(error) {
     // Consider adjusting the error handling logic for your use case
     if (error.response) {
@@ -46,17 +127,4 @@ export default async function (req, res) {
       });
     }
   }
-}
-
-function generatePrompt(animal) {
-  const capitalizedAnimal =
-    animal[0].toUpperCase() + animal.slice(1).toLowerCase();
-  return `Suggest three names for an animal that is a superhero.
-
-Animal: Cat
-Names: Captain Sharpclaw, Agent Fluffball, The Incredible Feline
-Animal: Dog
-Names: Ruff the Protector, Wonder Canine, Sir Barks-a-Lot
-Animal: ${capitalizedAnimal}
-Names:`;
 }
