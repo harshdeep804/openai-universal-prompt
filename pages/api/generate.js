@@ -101,11 +101,11 @@ export default async function (req, res) {
           res.status(200).json({ query, result: image_url, type: 'Image' });        
       }
     } else if (completion.data.choices[0].text?.includes('Code')) {
-      const temperature = 0.2;
-      const max_tokens = 2000;
+      const temperature = 0;
+      const max_tokens = 500;
 
       const completion = await openai.createCompletion({
-        model: "code-davinci-002",
+        model: "text-davinci-003", // `code-davinci-002` can be used here but it was generating long and unrelated responses at times
         prompt: query,
         temperature,
         max_tokens,

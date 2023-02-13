@@ -63,7 +63,7 @@ export default function Home() {
   return (
     <div>
       <Head>
-        <title>OpenAPI All-in-one Prompt</title>
+        <title>OpenAI All-in-one Prompt</title>
       </Head>
 
       <main className={styles.main}>
